@@ -1,0 +1,8 @@
+** Remove this line before using** - Inform Event Bridge when an EBS Snapshot is created
+
+ {
+"source": ["aws.ec2"],
+"detail-type":["EBS Snapshot Notification"],
+"detail": {"event":["createSnapshot"]
+ }
+}
