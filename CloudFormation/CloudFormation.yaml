@@ -1,0 +1,67 @@
+#Deploying VPC, EC2 Instance & Internet Gateway
+AWSTemplateFormatVersion: 2022-06-14
+
+
+#Deploying Security Group
+Type: AWS::EC2::SecurityGroup
+Properties: 
+  GroupDescription: SG for PowerBI Gateway
+  GroupName: PowerBI Gateway SG
+  SecurityGroupEgress: 
+    - IpProtocol: tcp
+    FromPort: 80
+    ToPort: 80
+    CidrIp: 0.0.0.0/0
+  SecurityGroupIngress: 
+    - Ingress
+  Tags: 
+    - Tag
+  VpcId: String
+
+#Deploying VPC
+PowerBIVPC:
+  Type: AWS::EC2::VPC
+  Properties: 
+    CidrBlock: # 10.0.0.0/16
+    EnableDnsHostnames: 'true'
+    InstanceTenancy: default
+    Tags: 
+      - Key: Name 
+      - Value: PowerBI Gateway
+
+
+#Deploying EC2 Instance
+PowerBIInstance:
+  Type: AWS::EC2::Instance
+  Properties: 
+    HibernationOptions: 'false'
+    ImageId: # 'IncludeImageAMI'
+    InstanceType: 't2.medium'
+    KeyName: # 'IncludeKeyPairName'
+    Monitoring: 'true'
+    NetworkInterfaces: 
+      - NetworkInterface
+    PrivateIpAddress: # 'IP Address'
+    PropagateTagsToVolumeOnCreation: 'true'
+    SecurityGroupIds: 
+      - 'IncludeSecurityGroupID'
+    SourceDestCheck: 
+    SubnetId: # 'Include Subnet ID'
+    Tags: 
+      - Key: Name
+      - Value: PowerBI Gateway
+    UserData: String
+    Volumes: 
+      - VolumeName
+
+#Deploying NAT Gateway
+
+PowerBINatGateway:
+  Type: AWS::EC2::NatGateway
+  Properties: 
+    AllocationId: # 'AllocationID of IPv4 Address'
+    ConnectivityType: # 'public'
+    SubnetId: # 'subnetid'
+    Tags: 
+      - Key: Name
+      - Value: PowerBI Gateway
