@@ -1,67 +1,63 @@
-#Deploying VPC, EC2 Instance & Internet Gateway
-AWSTemplateFormatVersion: 2022-06-14
+#Deploying Resources
+#https://docs.aws.amazon.com/whitepapers/latest/using-power-bi-with-aws-cloud/using-power-bi-with-aws-cloud.pdf
+Description: PowerBI Cloud Formation
 
+Resources:
 
 #Deploying Security Group
-Type: AWS::EC2::SecurityGroup
-Properties: 
-  GroupDescription: SG for PowerBI Gateway
-  GroupName: PowerBI Gateway SG
-  SecurityGroupEgress: 
-    - IpProtocol: tcp
-    FromPort: 80
-    ToPort: 80
-    CidrIp: 0.0.0.0/0
-  SecurityGroupIngress: 
-    - Ingress
-  Tags: 
-    - Tag
-  VpcId: String
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SG for PowerBI Gateway
+      GroupName: PowerBI
+      VpcId: !Ref PowerBIVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
 
 #Deploying VPC
-PowerBIVPC:
-  Type: AWS::EC2::VPC
-  Properties: 
-    CidrBlock: # 10.0.0.0/16
-    EnableDnsHostnames: 'true'
-    InstanceTenancy: default
-    Tags: 
-      - Key: Name 
-      - Value: PowerBI Gateway
+  PowerBIVPC:
+    Type: AWS::EC2::VPC
+    Properties: 
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags: 
+        - Key: Name 
+          Value: PowerBI Gateway
 
+#Deploying Subnet
+  PowerBiPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref PowerBIVPC
+      AvailabilityZone: "ap-southeast-2b"
+      CidrBlock: 10.0.0.0/24
+      Tags:
+      - Key: Name
+        Value: PowerBiGateway
 
 #Deploying EC2 Instance
-PowerBIInstance:
-  Type: AWS::EC2::Instance
-  Properties: 
-    HibernationOptions: 'false'
-    ImageId: # 'IncludeImageAMI'
-    InstanceType: 't2.medium'
-    KeyName: # 'IncludeKeyPairName'
-    Monitoring: 'true'
-    NetworkInterfaces: 
-      - NetworkInterface
-    PrivateIpAddress: # 'IP Address'
-    PropagateTagsToVolumeOnCreation: 'true'
-    SecurityGroupIds: 
-      - 'IncludeSecurityGroupID'
-    SourceDestCheck: 
-    SubnetId: # 'Include Subnet ID'
-    Tags: 
-      - Key: Name
-      - Value: PowerBI Gateway
-    UserData: String
-    Volumes: 
-      - VolumeName
+  PowerBIInstance:
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: ami-0300dc03c13eb7660
+      InstanceType: t2.micro
+      KeyName: Grafana3.0
+      Monitoring: true
+      PropagateTagsToVolumeOnCreation: 'true'
+      SecurityGroupIds: 
+      - !GetAtt "InstanceSecurityGroup.GroupId"
+      SubnetId: !Ref PowerBiPublicSubnet
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: '5'
+            DeleteOnTermination: 'false'
+            Encrypted: 'false'
 
-#Deploying NAT Gateway
 
-PowerBINatGateway:
-  Type: AWS::EC2::NatGateway
-  Properties: 
-    AllocationId: # 'AllocationID of IPv4 Address'
-    ConnectivityType: # 'public'
-    SubnetId: # 'subnetid'
-    Tags: 
-      - Key: Name
-      - Value: PowerBI Gateway
