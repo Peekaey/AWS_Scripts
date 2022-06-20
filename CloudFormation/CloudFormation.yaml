@@ -44,9 +44,9 @@ Resources:
   PowerBIInstance:
     Type: AWS::EC2::Instance
     Properties: 
-      ImageId: ami-0300dc03c13eb7660
+      ImageId: 
       InstanceType: t2.micro
-      KeyName: Grafana3.0
+      KeyName: 
       Monitoring: true
       PropagateTagsToVolumeOnCreation: 'true'
       SecurityGroupIds: 
