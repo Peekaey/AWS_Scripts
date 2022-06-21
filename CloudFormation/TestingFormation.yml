@@ -1,0 +1,60 @@
+#CloudFormation used primarily to test applications/scripts
+
+Description: CloundFormation Test Environment
+
+Resources:
+
+#Deploying Security Group
+  CFTestEnvironment_SG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Testing Environment In a Cloud Formation
+      GroupName: CFTestEnvironment
+      VpcId: !Ref CFTestEnvironment_VPC
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+#Deploying VPC
+  CFTestEnvironment_VPC:
+    Type: AWS::EC2::VPC
+    Properties: 
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags: 
+        - Key: Name 
+          Value: CFTestEnvironment_VPC
+
+
+#Deploying Subnet
+  CFTestEnvironment_Subnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref PowerBIVPC
+      AvailabilityZone: "ap-southeast-2b"
+      CidrBlock: 10.0.0.0/24
+      Tags:
+      - Key: Name
+        Value: PowerBiGateway
+
+#Deploying EC2 Instance
+ CFTestEnvironment_Instance:
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: ami-0300dc03c13eb7660
+      InstanceType: t2.micro
+      KeyName: 
+      Monitoring: true
+      PropagateTagsToVolumeOnCreation: 'true'
+      SecurityGroupIds: 
+      - !GetAtt "CFTestEnvironment_SG.GroupId"
+      SubnetId: !Ref CFTestEnvironment_Subnet
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: '10'
+            DeleteOnTermination: 'false'
+            Encrypted: 'false'
