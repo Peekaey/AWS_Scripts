@@ -44,9 +44,9 @@ Resources:
   PowerBIInstance:
     Type: AWS::EC2::Instance
     Properties: 
-      ImageId: 
+      ImageId: ami-0300dc03c13eb7660
       InstanceType: t2.micro
-      KeyName: 
+      KeyName: Grafana3.0
       Monitoring: true
       PropagateTagsToVolumeOnCreation: 'true'
       SecurityGroupIds: 
@@ -60,4 +60,23 @@ Resources:
             DeleteOnTermination: 'false'
             Encrypted: 'false'
 
+#Deploying Elastic IP
+  ElasticIP:
+    Type: AWS::EC2::EIP
+    Properties: 
+      Tags: 
+        - Key: Name
+          Value: PowerBIIP
 
+
+
+#Deploying Nat Gateway
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties: 
+      AllocationId: !GetAtt "ElasticIP.AllocationId"
+      ConnectivityType: public
+      SubnetId: !Ref PowerBiPublicSubnet
+      Tags: 
+      - Key: Name 
+        Value: PowerBiNatGateway
