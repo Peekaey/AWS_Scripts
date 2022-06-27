@@ -1,22 +1,22 @@
-#CloudFormation used primarily to test applications/scripts
+# CloudFormation template that creates an instance that is readily accessible from the internet
 
 Description: CloundFormation Test Environment
 
 Resources:
 
 #Deploying Security Group
-  CFTestEnvironment_SG:
+  CFTestEnvironmentSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Testing Environment In a Cloud Formation
       GroupName: CFTestEnvironment
-      VpcId: !Ref CFTestEnvironment_VPC
+      VpcId: !Ref CFTestEnvironmentVPC
       SecurityGroupIngress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
 
 #Deploying VPC
-  CFTestEnvironment_VPC:
+  CFTestEnvironmentVPC:
     Type: AWS::EC2::VPC
     Properties: 
       CidrBlock: 10.0.0.0/16
@@ -25,36 +25,74 @@ Resources:
       InstanceTenancy: default
       Tags: 
         - Key: Name 
-          Value: CFTestEnvironment_VPC
+          Value: CFTestEnvironmentVPC
 
 
 #Deploying Subnet
-  CFTestEnvironment_Subnet:
+  CFTestEnvironmentSubnet:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref PowerBIVPC
+      VpcId: !Ref CFTestEnvironmentVPC
       AvailabilityZone: "ap-southeast-2b"
       CidrBlock: 10.0.0.0/24
       Tags:
       - Key: Name
-        Value: PowerBiGateway
+        Value: CFTestEnviromentPublicSubnet
 
 #Deploying EC2 Instance
- CFTestEnvironment_Instance:
+  CFTestEnvironmentInstance:
     Type: AWS::EC2::Instance
     Properties: 
       ImageId: ami-0300dc03c13eb7660
       InstanceType: t2.micro
       KeyName: 
-      Monitoring: true
+      Monitoring: false
       PropagateTagsToVolumeOnCreation: 'true'
-      SecurityGroupIds: 
-      - !GetAtt "CFTestEnvironment_SG.GroupId"
-      SubnetId: !Ref CFTestEnvironment_Subnet
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          SubnetId: !Ref CFTestEnvironmentSubnet
+          GroupSet:
+            - !GetAtt "CFTestEnvironmentSG.GroupId"
       BlockDeviceMappings:
         - DeviceName: /dev/xvda
           Ebs:
             VolumeType: gp2
             VolumeSize: '10'
-            DeleteOnTermination: 'false'
+            DeleteOnTermination: 'true'
             Encrypted: 'false'
+
+#Deploying Internet Gateway
+  CFTestEnvironmentInternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+
+#Creating VPC Gateway Attachement
+  CFTestEnvironmentVPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref CFTestEnvironmentVPC
+      InternetGatewayId: !Ref CFTestEnvironmentInternetGateway
+
+# Creating Route Table
+  CFTestEnvironmentRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref CFTestEnvironmentVPC
+
+# Creating Internet Route
+  CFTestEnvironmentInternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: CFTestEnvironmentVPCGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref CFTestEnvironmentInternetGateway
+      RouteTableId: !Ref CFTestEnvironmentRouteTable
+
+# Creating Gateway Subnet Association
+  CFTestEnvironmentSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref CFTestEnvironmentRouteTable
+      SubnetId: !Ref CFTestEnvironmentSubnet
+    
