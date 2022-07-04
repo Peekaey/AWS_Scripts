@@ -45,7 +45,7 @@ Resources:
     Properties: 
       ImageId: ami-0300dc03c13eb7660
       InstanceType: t2.micro
-      KeyName: 
+      KeyName: deploy4-linux
       Monitoring: false
       PropagateTagsToVolumeOnCreation: 'true'
       NetworkInterfaces:
@@ -58,7 +58,7 @@ Resources:
         - DeviceName: /dev/xvda
           Ebs:
             VolumeType: gp2
-            VolumeSize: '10'
+            VolumeSize: '30'
             DeleteOnTermination: 'true'
             Encrypted: 'false'
 

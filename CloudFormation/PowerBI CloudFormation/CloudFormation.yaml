@@ -5,17 +5,34 @@ Description: PowerBI Cloud Formation
 Resources:
 
 #Deploying Security Group
-  InstanceSecurityGroup:
+  PowerBiSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: SG for PowerBI Gateway
       GroupName: PowerBI
       VpcId: !Ref PowerBIVPC
-      SecurityGroupIngress:
+      SecurityGroupEgress:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 5671
+          ToPort: 5671
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 5672
+          ToPort: 5672
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 9350-9354
+          ToPort: 3950-9354
+          CidrIp: 0.0.0.0/0
+      
 
 #Deploying VPC
   PowerBIVPC:
@@ -50,23 +67,23 @@ Resources:
       Monitoring: true
       PropagateTagsToVolumeOnCreation: 'true'
       SecurityGroupIds: 
-      - !GetAtt "InstanceSecurityGroup.GroupId"
+      - !GetAtt "PowerBiSG.GroupId"
       SubnetId: !Ref PowerBiPublicSubnet
       BlockDeviceMappings:
         - DeviceName: /dev/xvda
           Ebs:
             VolumeType: gp2
-            VolumeSize: '5'
+            VolumeSize: '10'
             DeleteOnTermination: 'false'
             Encrypted: 'false'
 
 #Deploying Elastic IP
-  ElasticIP:
+  PowerBiEIP:
     Type: AWS::EC2::EIP
     Properties: 
       Tags: 
         - Key: Name
-          Value: PowerBIIP
+          Value: PowerBIEIP
 
 
 
@@ -74,7 +91,7 @@ Resources:
   NatGateway:
     Type: AWS::EC2::NatGateway
     Properties: 
-      AllocationId: !GetAtt "ElasticIP.AllocationId"
+      AllocationId: !GetAtt "PowerBiEIP.AllocationId"
       ConnectivityType: public
       SubnetId: !Ref PowerBiPublicSubnet
       Tags: 
