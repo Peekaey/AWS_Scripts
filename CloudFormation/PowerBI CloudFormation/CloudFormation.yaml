@@ -2,6 +2,13 @@
 #https://docs.aws.amazon.com/whitepapers/latest/using-power-bi-with-aws-cloud/using-power-bi-with-aws-cloud.pdf
 Description: PowerBI Cloud Formation
 
+## Might be required later on for ingress between
+Add-VpnConnectionRoute
+#      SourceSecurityGroupId:
+#        Fn::GetAtt:
+#          - SourceSG
+#          - GroupId
+
 Resources:
 
 #Deploying Security Group
@@ -10,32 +17,22 @@ Resources:
     Properties:
       GroupDescription: SG for PowerBI Gateway
       GroupName: PowerBI
-      VpcId: !Ref PowerBIVPC
+      VpcId: !Ref PowerBiVPC
       SecurityGroupEgress:
         - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
+          FromPort: '80'
+          ToPort: '80'
         - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 5671
-          ToPort: 5671
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 5672
-          ToPort: 5672
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 9350-9354
-          ToPort: 3950-9354
-          CidrIp: 0.0.0.0/0
+          FromPort: '443'
+          ToPort: '443'
+      IpProtocol: [tcp|udp|ip]
+      FromPort: '1433'
+      ToPort: '1433'
+
       
 
 #Deploying VPC
-  PowerBIVPC:
+  PowerBiVPC:
     Type: AWS::EC2::VPC
     Properties: 
       CidrBlock: 10.0.0.0/16
@@ -47,10 +44,10 @@ Resources:
           Value: PowerBI Gateway
 
 #Deploying Subnet
-  PowerBiPublicSubnet:
+  PowerBiPublicSubnetA:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref PowerBIVPC
+      VpcId: !Ref PowerBiVPC
       AvailabilityZone: "ap-southeast-2b"
       CidrBlock: 10.0.0.0/24
       Tags:
@@ -68,7 +65,7 @@ Resources:
       PropagateTagsToVolumeOnCreation: 'true'
       SecurityGroupIds: 
       - !GetAtt "PowerBiSG.GroupId"
-      SubnetId: !Ref PowerBiPublicSubnet
+      SubnetId: !Ref PowerBiPublicSubnetA
       BlockDeviceMappings:
         - DeviceName: /dev/xvda
           Ebs:
@@ -86,14 +83,52 @@ Resources:
           Value: PowerBIEIP
 
 
-
+#Deploying Internet Gateway
+  PowerBiInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: PowerBi
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref PowerBiVPC
+      InternetGatewayId: !Ref PowerBiInternetGateway
+      
+## OPTIONAL - Can Deploy a Nat Gateway to prevent internet inbound traffic, however costs additional
 #Deploying Nat Gateway
   NatGateway:
     Type: AWS::EC2::NatGateway
     Properties: 
       AllocationId: !GetAtt "PowerBiEIP.AllocationId"
       ConnectivityType: public
-      SubnetId: !Ref PowerBiPublicSubnet
+      SubnetId: !Ref PowerBiPublicSubnetA
       Tags: 
       - Key: Name 
         Value: PowerBiNatGateway
+
+
+#Creating Route Table
+  PowerBiRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: PowerBiVPC
+      Tags:
+        - Key: Name
+          Value: PowerBi
+
+#Creating Internet Route
+  PowerBiRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PowerBiRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref PowerBiInternetGateway
+
+#Creating Gateway Subnet Association
+    PowerBiSubnetARouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        RouteTableId: !Ref PowerBiRouteTable # Required
+        SubnetId: !Ref PowerBiPublicSubnetA
