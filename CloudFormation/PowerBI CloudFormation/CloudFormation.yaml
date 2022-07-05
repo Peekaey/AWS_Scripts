@@ -3,7 +3,6 @@
 Description: PowerBI Cloud Formation
 
 ## Might be required later on for ingress between
-Add-VpnConnectionRoute
 #      SourceSecurityGroupId:
 #        Fn::GetAtt:
 #          - SourceSG
