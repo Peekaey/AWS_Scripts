@@ -24,7 +24,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: '443'
           ToPort: '443'
-      IpProtocol: [tcp|udp|ip]
+      IpProtocol: tcp
       FromPort: '1433'
       ToPort: '1433'
 
@@ -59,7 +59,7 @@ Resources:
     Properties: 
       ImageId: ami-0300dc03c13eb7660
       InstanceType: t2.micro
-      KeyName: Grafana3.0
+      KeyName: 
       Monitoring: true
       PropagateTagsToVolumeOnCreation: 'true'
       SecurityGroupIds: 
@@ -129,5 +129,5 @@ Resources:
     PowerBiSubnetARouteTableAssociation:
       Type: AWS::EC2::SubnetRouteTableAssociation
       Properties:
-        RouteTableId: !Ref PowerBiRouteTable # Required
+        RouteTableId: !Ref PowerBiRouteTable 
         SubnetId: !Ref PowerBiPublicSubnetA
