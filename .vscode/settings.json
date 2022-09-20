@@ -1,0 +1,4 @@
+{
+    "awsCfnAutoTemplateGenerator.templateFormat": "yaml",
+    "awsCfnAutoTemplateGenerator.region": "ap-southeast-2"
+}
