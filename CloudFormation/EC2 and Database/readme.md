@@ -1,0 +1,1 @@
+# Basic Cloudformation template for an EC2 Instance and Database with the Database allowing access from the EC2 Instance

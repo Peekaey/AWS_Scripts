@@ -1,0 +1,120 @@
+Description: Cloudformation Template
+Resources:
+
+  #VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: VPC
+
+ #Deploying Private Subnet A
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: "ap-southeast-2a"
+      CidrBlock: 10.0.1.0/24
+      Tags:
+      - Key: Name
+        Value: PrivateSubnetA
+
+#Deploying Private Subnet B
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: "ap-southeast-2b"
+      CidrBlock: 10.0.2.0/24
+      Tags:
+      - Key: Name
+        Value: PrivateSubnetB
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: "Subnet For Database"
+      SubnetIds: 
+        - !Ref PublicSubnetA
+        - !Ref PublicSubnetB
+
+    
+
+
+
+  DSSGIngressRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      FromPort: "3306"
+      ToPort: "3306"
+      GroupId: !Ref DBSG
+      IpProtocol: tcp
+      CidrIp: 0.0.0.0/0
+
+
+  DBSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SG for Database
+      GroupName: DBSG
+      VpcId: !Ref VPC
+
+
+
+
+  PrimaryDB:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBName: "DiscordDatabase"
+      MasterUsername: "username"
+      MasterUserPassword: "password"
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      Engine: MySQL
+      DBInstanceClass: db.t2.micro
+      StorageType: gp2
+      PubliclyAccessible: False
+      AllocatedStorage: 20
+      DBInstanceIdentifier: "DatabaseInstance"
+      StorageEncrypted: False
+      PubliclyAccessible: Yes
+      VPCSecurityGroups:
+        - !Ref DBSG
+
+#Deploying Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+
+#Creating VPC Gateway Attachement
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+# Creating Route Table
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+# Creating Internet Route
+  InternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref RouteTable
+
+# Creating Gateway Subnet Association
+  SubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref PublicSubnetA

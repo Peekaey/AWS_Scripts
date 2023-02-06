@@ -1,0 +1,158 @@
+
+Description: EC2 & Database
+
+Resources:
+
+#Deploying Security Group
+  EC2SG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SG for EC2 Instance
+      GroupName: EC2SG
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  DatabaseSG:
+    Type: AWS::RDS::DBSecurityGroup
+    Properties:
+      EC2VpcId: !Ref VPC
+      GroupDescription: "Security Group For Database"
+      DBSecurityGroupIngress: 
+        EC2SecurityGroupId: !Ref EC2SG
+      DBSecurityGroupIngress: 
+        EC2SecurityGroupId: !Ref EC2SG
+      
+
+  
+#Deploying VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties: 
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags: 
+        - Key: Name 
+          Value: VPC
+
+
+#Deploying Public Subnet A
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: "ap-southeast-2b"
+      CidrBlock: 10.0.1.0/24
+      Tags:
+      - Key: Name
+        Value: PublicSubnetA
+
+#Deploying Private Subnet A
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: "ap-southeast-2a"
+      CidrBlock: 10.0.2.0/24
+      Tags:
+      - Key: Name
+        Value: PrivateSubnetA
+
+#Deploying Private Subnet B
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: "ap-southeast-2b"
+      CidrBlock: 10.0.3.0/24
+      Tags:
+      - Key: Name
+        Value: PrivateSubnetB
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: "Subnet For Database"
+      SubnetIds: 
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
+
+
+  PrimaryDB:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBName: "DiscordDatabase"
+      MasterUsername: "username"
+      MasterUserPassword: "password"
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      Engine: MySQL
+      DBInstanceClass: db.t2.micro
+      StorageType: gp2
+      PubliclyAccessible: False
+      AllocatedStorage: 20
+      DBInstanceIdentifier: "DatabaseInstance"
+      StorageEncrypted: False
+      DBSecurityGroups:
+        - Ref: "DatabaseSG"
+
+
+#Deploying EC2 Instance
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: ami-0c18f3cdeea1c220d
+      InstanceType: t2.medium
+      KeyName: deploy5-linux
+      Monitoring: false
+      PropagateTagsToVolumeOnCreation: 'true'
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          SubnetId: !Ref PublicSubnetA
+          GroupSet:
+            - !GetAtt "EC2SG.GroupId"
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: '30'
+            DeleteOnTermination: 'true'
+            Encrypted: 'false'
+
+#Deploying Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+
+#Creating VPC Gateway Attachement
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+# Creating Route Table
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+# Creating Internet Route
+  InternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref RouteTable
+
+# Creating Gateway Subnet Association
+  SubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref PublicSubnetA
+    

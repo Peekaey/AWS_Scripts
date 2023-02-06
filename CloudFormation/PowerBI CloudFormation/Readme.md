@@ -1,1 +1,0 @@
-# CloudFormation for a VPC/Subnet & Nat Gateway as per AWS Best Practice

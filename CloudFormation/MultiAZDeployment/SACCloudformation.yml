@@ -1,0 +1,294 @@
+
+Description: CloudFormation Template
+
+Resources:
+
+#Deploying VPC
+  SACVPC:
+    Type: AWS::EC2::VPC
+    Properties: 
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags: 
+        - Key: Name 
+          Value: SupportACause_VPC
+
+
+#Deploying Subnet Public A 
+  SACPublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref SACVPC
+      AvailabilityZone: "ap-southeast-2a"
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+      - Key: Name
+        Value: SupportACause_Public_Subnet_A
+
+#Deploying Subnet Public B
+  SACPublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref SACVPC
+      AvailabilityZone: "ap-southeast-2b"
+      CidrBlock: 10.0.2.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+      - Key: Name
+        Value: SupportACause_Public_Subnet_B
+
+#Deploying Subnet Private A 
+  SACPrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref SACVPC
+      AvailabilityZone: "ap-southeast-2a"
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+      - Key: Name
+        Value: SupportACause_Private_Subnet_A
+
+#Deploying Subnet Private B
+  SACPrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref SACVPC
+      AvailabilityZone: "ap-southeast-2b"
+      CidrBlock: 10.0.2.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+      - Key: Name
+        Value: SupportACause_Private_Subnet_B
+
+
+#Deploying Subnet Private C
+  SACPrivateSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref SACVPC
+      AvailabilityZone: "ap-southeast-2a"
+      CidrBlock: 10.0.3.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+      - Key: Name
+        Value: SupportACause_Private_Subnet_C
+
+#Deploying Subnet Private D
+  SACPrivateSubnetD:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref SACVPC
+      AvailabilityZone: "ap-southeast-2b"
+      CidrBlock: 10.0.4.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+      - Key: Name
+        Value: SupportACause_Private_Subnet_D
+
+
+
+#Deploying Internet Gateway
+  SACInternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+
+#Creating VPC Gateway Attachement
+  SACVPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref SACVPC
+      InternetGatewayId: !Ref SACInternetGateway
+
+# Creating Route Table
+  SACRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref SACVPC
+
+# Creating Internet Route
+  SACInternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: SACVPCGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref SACInternetGateway
+      RouteTableId: !Ref SACRouteTable
+
+# Creating Gateway Subnet Association
+  SACSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref SACRouteTable
+      SubnetId: !Ref SACSubnetA
+
+# Creating Gateway Subnet Association
+  SACSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref SACRouteTable
+      SubnetId: !Ref SACSubnetA
+
+
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: "Subnet For DB"
+      SubnetIds: 
+        - !Ref SACSubnetC
+        - !Ref SACSubnetD
+
+
+
+  SACPrimaryDB:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBName: "database"
+      MasterUsername: "username"
+      MasterUserPassword: "password"
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      Engine: MySQL
+      DBInstanceClass: db.t2.micro
+      StorageType: gp2
+      PubliclyAccessible: False
+      AllocatedStorage: 20
+      DBInstanceIdentifier: "DatabaseInstance"
+      # StorageEncrypted: True
+
+
+  SACReadReplicaDB:
+    Type: Type:AWS::RDS::DBInstance
+    Properties:
+      SourceDBInstanceIdentifier: !Ref SACPrimaryDB
+      Tags:
+    - Key: Name
+    - Value: Read Replica Database
+
+
+# Creating Launch Template
+LogicalID:
+  Type: AWS::EC2::LaunchTemplate
+  Properties:
+    LaunchTemplateName: "SACPublicInstance"
+    LaunchTemplateData:
+      NetworkInterfaces:
+          - DeviceIndex: 0
+            AssociatePublicIpAddress: true
+            DeleteOnTermination: true
+            Groups:
+              - !Ref InstanceSecurityGroup
+        ImageId: ami-0300dc03c13eb7660
+        InstanceType: t2.micro
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              VolumeType: gp2
+              VolumeSize: '30'
+              DeleteOnTermination: 'true'
+              Encrypted: 'false'
+        #SecurityGroupIds:
+        #  - !Ref InstanceSecurityGroup
+
+
+# Deploying Auto Scaling Group
+  # Create AutoScaling Group - Public
+  SACPublicAutoScalingGroup:
+    Type: 'AWS::AutoScaling::AutoScalingGroup'
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      MaxSize: '5'
+      MinSize: '2'
+      DesiredCapacity: '2'
+      VPCZoneIdentifier:
+        - !Ref SACPublicSubnetA
+        - !Ref SACPublicSubnetB
+      MetricsCollection:
+        - Granularity: 1Minute
+
+
+  # Create a Scaling Policy - Public
+  ScalingPolicy02:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref SACPublicAutoScalingGroup
+      ScalingAdjustment: '1'
+
+
+ElasticLoadBalancer:
+  Type: AWS::ElasticLoadBalancing::LoadBalancer
+  Properties:
+    Scheme: internal
+    SecurityGroups:
+      - sg-id
+    Subnets:
+      - subnet-id
+    Instances:
+      - instance-id
+    Listeners:
+      - LoadBalancerPort: 
+        InstancePort: 
+        Protocol: HTTP|HTTPS|TCP|SSL
+        InstanceProtocol: HTTP|HTTPS|TCP|SSL
+      - LoadBalancerPort: '443'
+        InstancePort: '443'
+        Protocol: HTTPS
+        InstanceProtocol: HTTPS
+        SSLCertificateId: 
+    HealthCheck:
+      Target: TCP:port or HTTPS|HTTP:port/PathToPing
+      HealthyThreshold: 
+      Interval: 
+      Timeout: 
+      UnhealthyThreshold: 
+
+
+
+
+# #Deploying Security Group
+#   CFTestEnvironmentSG:
+#     Type: AWS::EC2::SecurityGroup
+#     Properties:
+#       GroupDescription: Testing Environment In a Cloud Formation
+#       GroupName: CFTestEnvironment
+#       VpcId: !Ref CFTestEnvironmentVPC
+#       SecurityGroupIngress:
+#         - IpProtocol: -1
+#           CidrIp: 0.0.0.0/0
+
+
+
+
+
+# #Deploying EC2 Instance
+#   CFTestEnvironmentInstance:
+#     Type: AWS::EC2::Instance
+#     Properties: 
+#       ImageId: ami-0300dc03c13eb7660
+#       InstanceType: t2.micro
+#       KeyName: deploy4-linux
+#       Monitoring: false
+#       PropagateTagsToVolumeOnCreation: 'true'
+#       NetworkInterfaces:
+#         - AssociatePublicIpAddress: "true"
+#           DeviceIndex: "0"
+#           SubnetId: !Ref CFTestEnvironmentSubnet
+#           GroupSet:
+#             - !GetAtt "CFTestEnvironmentSG.GroupId"
+#       BlockDeviceMappings:
+#         - DeviceName: /dev/xvda
+#           Ebs:
+#             VolumeType: gp2
+#             VolumeSize: '30'
+#             DeleteOnTermination: 'true'
+#             Encrypted: 'false'
+
+
+
+
