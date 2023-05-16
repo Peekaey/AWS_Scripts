@@ -5,7 +5,7 @@ const s3 = new AWS.S3();
 const bucketName = process.env.bucketName;
 
 // Functining List Bucket Contents
-async function getS3Reports() {
+async function ListS3BucketContents() {
   console.log("Listing Bucket Contents");
   const params = { Bucket: bucketName };
   try {
