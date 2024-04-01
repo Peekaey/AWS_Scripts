@@ -1,0 +1,111 @@
+# CloudFormation template that creates an instance that is readily accessible from the internet as well as installing team city server and mariaDB in docker
+
+Description: CloundFormation template - with ec2 instance that has team city server and mariadb running in docker
+
+Parameters:
+  EC2Keyname:
+    Description: Enter the name of the key you wish to use
+    Type: AWS::EC2::KeyPair::KeyName
+
+Resources:
+
+#Deploying Security Group
+  TeamcitySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for Team City
+      GroupName: Teamcity Security Group
+      VpcId: !Ref TeamcityVPC
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+#Deploying VPC
+  TeamcityVPC:
+    Type: AWS::EC2::VPC
+    Properties: 
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags: 
+        - Key: Name 
+          Value: TeamcityVPC
+
+
+#Deploying Subnet
+  TeamcitySubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref TeamcityVPC
+      AvailabilityZone: "ap-southeast-2b"
+      CidrBlock: 10.0.0.0/24
+      Tags:
+      - Key: Name
+        Value: Teamcity Subnet
+
+#Deploying EC2 Instance
+  TeamcityInstance:
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: ami-0300dc03c13eb7660
+      InstanceType: t3a.large
+      KeyName: !Ref EC2Keyname
+      Monitoring: false
+      PropagateTagsToVolumeOnCreation: 'true'
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          SubnetId: !Ref TeamcitySubnet
+          GroupSet:
+            - !GetAtt "TeamcitySecurityGroup.GroupId"
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: '50'
+            DeleteOnTermination: 'true'
+            Encrypted: 'false'
+      UserData:
+        Fn::Base64: !Base64 |
+          #! /bin/bash
+          git clone https://github.com/Peekaey/Linux_Scripts
+          cd Linux_Scripts/DockerTeamCityServerInstall
+          sudo chmod +x TCSInstall.sh
+          ./TCSInstall.sh
+
+
+#Deploying Internet Gateway
+  TeamcityInternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+
+#Creating VPC Gateway Attachement
+  TeamcityVPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref TeamcityVPC
+      InternetGatewayId: !Ref TeamcityInternetGateway
+
+# Creating Route Table
+  TeamcityRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref TeamcityVPC
+
+# Creating Internet Route
+  CFTestEnvironmentInternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: TeamcityVPCGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref TeamcityInternetGateway
+      RouteTableId: !Ref TeamcityRouteTable
+
+# Creating Gateway Subnet Association
+  TeamcitySubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref TeamcityRouteTable
+      SubnetId: !Ref TeamcitySubnet
+    
